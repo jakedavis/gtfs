@@ -8,9 +8,13 @@ module GTFS
       base.class_variable_set('@@prefix', '')
       base.class_variable_set('@@optional_attrs', [])
       base.class_variable_set('@@required_attrs', [])
+      base.class_variable_set('@@or_attrs', [])
 
       def valid?
-        !self.class.required_attrs.any?{|f| self.send(f.to_sym).nil?}
+        ors  = self.class.or_attrs.all? {|set| set.any? {|f| self.send(f.to_sym)}}
+        reqs = self.class.required_attrs.all? {|f| self.send(f.to_sym)}
+
+        ors && reqs
       end
 
       def initialize(attrs)
@@ -34,12 +38,17 @@ module GTFS
         self.class_variable_get('@@optional_attrs')
       end
 
+      # Attributes that require at least one to be set. This is an array of arrays.
+      def or_attrs
+        self.class_variable_get('@@or_attrs')
+      end
+
       def required_attrs
         self.class_variable_get('@@required_attrs')
       end
 
       def attrs
-       required_attrs + optional_attrs
+        required_attrs + optional_attrs + or_attrs.flatten
       end
 
       #####################################
@@ -48,6 +57,12 @@ module GTFS
 
       def has_required_attrs(*attrs)
         self.class_variable_set('@@required_attrs', attrs)
+      end
+
+      # OR attributes are ones in which at least one must be set (AKA boolean OR). This should be
+      # an array of arrays.
+      def has_or_attrs(*attrs)
+        self.class_variable_set('@@or_attrs', attrs)
       end
 
       def has_optional_attrs(*attrs)
